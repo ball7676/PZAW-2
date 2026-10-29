@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, type ChangeEvent, type MouseEvent, type ReactNode } from "react";
 import "./App.css";
 
 type MovieProps = {
@@ -26,6 +26,18 @@ type MusicProps = {
     songList: Song[];
     songArtist: string;
     genre: string;
+};
+
+type SearchFieldProps = {
+    id: string;
+    value: string;
+    onChange: (event: ChangeEvent<HTMLInputElement>) => void;
+};
+
+type SectionProps = {
+    title: string;
+    children: ReactNode;
+    controls?: ReactNode;
 };
 
 const Movies: MovieProps[] = [
@@ -106,12 +118,28 @@ const Albums: MusicProps[] = [
 ].sort((a, b) => a.albumName.localeCompare(b.albumName));
 
 function Movie({ poster, movieName, releaseDate, rating }: MovieProps) {
+    function handleCardClick() {
+        console.log(`Wybrano film: ${movieName}`);
+    }
+
+    function handleDetailsClick(event: MouseEvent<HTMLButtonElement>) {
+        event.stopPropagation();
+        console.log(`Pokaż szczegóły dla ${movieName}`);
+    }
+
     return (
-        <div className="card">
+        <div className="card movie-card" onClick={handleCardClick}>
             <img src={poster} className="card-img-top" alt={movieName} />
             <div className="card-body">
                 <h2 className="card-title">{movieName}</h2>
                 <p className="card-text">{releaseDate}</p>
+                <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={handleDetailsClick}
+                >
+                    Pokaż szczegóły
+                </button>
                 <p className="card-text">Ocena: {rating.toFixed(1)}/10</p>
                 {rating >= 8 && <span className="badge badge-recommended">Polecany</span>}
             </div>
@@ -134,6 +162,10 @@ function Book({ cover, bookName, releaseDate, pageAmount }: BookProps) {
 }
 
 function Music({ cover, albumName, songArtist, genre, songList }: MusicProps) {
+    function handleSongClick(title: string) {
+        console.log(`Wybrano utwór: ${title} z ${albumName}`);
+    }
+
     return (
         <div className="card">
             <img src={cover} className="card-img-top" alt={albumName} />
@@ -156,7 +188,7 @@ function Music({ cover, albumName, songArtist, genre, songList }: MusicProps) {
                             </thead>
                             <tbody>
                                 {songList.map(({ title, duration }) => (
-                                    <tr key={title}>
+                                    <tr key={title} onClick={() => handleSongClick(title)}>
                                         <td>{title}</td>
                                         <td>{duration}</td>
                                     </tr>
@@ -170,12 +202,26 @@ function Music({ cover, albumName, songArtist, genre, songList }: MusicProps) {
     );
 }
 
-type SectionProps = {
-    title: string;
-    children: ReactNode;
-};
+function SearchField({ id, value, onChange }: SearchFieldProps) {
+    return (
+        <div className="search-field">
+            <label className="form-label" htmlFor={id}>
+                Szukaj
+            </label>
+            <input
+                id={id}
+                type="text"
+                className="form-control"
+                placeholder="Wpisz tytuł"
+                value={value}
+                onChange={onChange}
+            />
+            <p className="search-preview mb-0">Szukany tytuł: {value}</p>
+        </div>
+    );
+}
 
-function Section({ title, children }: SectionProps) {
+function Section({ title, children, controls }: SectionProps) {
     const [isOpen, setIsOpen] = useState(true);
 
     return (
@@ -183,27 +229,77 @@ function Section({ title, children }: SectionProps) {
             <h2 className="section-header" onClick={() => setIsOpen(!isOpen)}>
                 {isOpen ? "▾" : "▸"} {title}
             </h2>
-            {isOpen && <div className="card-grid">{children}</div>}
+            {isOpen && (
+                <>
+                    {controls}
+                    <div className="card-grid">{children}</div>
+                </>
+            )}
         </section>
     );
 }
 
 export default function App() {
+    const [movieSearch, setMovieSearch] = useState("");
+    const [bookSearch, setBookSearch] = useState("");
+    const [albumSearch, setAlbumSearch] = useState("");
+
+    function handleMovieSearch(event: ChangeEvent<HTMLInputElement>) {
+        const value = event.target.value;
+        console.log("Szukany film:", value);
+        setMovieSearch(value);
+    }
+
+    function handleBookSearch(event: ChangeEvent<HTMLInputElement>) {
+        const value = event.target.value;
+        console.log("Szukana książka:", value);
+        setBookSearch(value);
+    }
+
+    function handleAlbumSearch(event: ChangeEvent<HTMLInputElement>) {
+        const value = event.target.value;
+        console.log("Szukany album:", value);
+        setAlbumSearch(value);
+    }
+
+    const filteredMovies = Movies.filter((movie) =>
+        movie.movieName.toLowerCase().includes(movieSearch.toLowerCase()),
+    );
+
     return (
         <div className="container app">
-            <Section title="Filmy">
-                {Movies.map((movie) => (
-                    <Movie key={movie.movieName} {...movie} />
-                ))}
+            <Section
+                title="Filmy"
+                controls={
+                    <SearchField id="movie-search" value={movieSearch} onChange={handleMovieSearch} />
+                }
+            >
+                {filteredMovies.length > 0 ? (
+                    filteredMovies.map((movie) => (
+                        <Movie key={movie.movieName} {...movie} />
+                    ))
+                ) : (
+                    <p className="no-results">Nie znaleziono filmów</p>
+                )}
             </Section>
 
-            <Section title="Książki">
+            <Section
+                title="Książki"
+                controls={
+                    <SearchField id="book-search" value={bookSearch} onChange={handleBookSearch} />
+                }
+            >
                 {Books.map((book) => (
                     <Book key={book.bookName} {...book} />
                 ))}
             </Section>
 
-            <Section title="Albumy">
+            <Section
+                title="Albumy"
+                controls={
+                    <SearchField id="album-search" value={albumSearch} onChange={handleAlbumSearch} />
+                }
+            >
                 {Albums.map((album) => (
                     <Music key={album.albumName} {...album} />
                 ))}
